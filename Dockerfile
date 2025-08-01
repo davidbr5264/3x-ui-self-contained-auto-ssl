@@ -1,5 +1,4 @@
 # --- Stage 1: Build Environment ---
-# We can still use alpine here as it's just for downloading
 FROM alpine:latest AS builder
 
 # Install build-time dependencies
@@ -14,9 +13,9 @@ RUN wget -O /tmp/3x-ui.tar.gz "https://github.com/MHSanaei/3x-ui/releases/latest
     tar -zxvf /tmp/3x-ui.tar.gz -C /usr/local/ && \
     chmod +x /usr/local/x-ui/x-ui
 
-# --- Stage 2: Final Production Image (Using Debian) ---
-# Use debian:slim as the base, which includes glibc
-FROM debian:slim
+# --- Stage 2: Final Production Image (Using Debian 12) ---
+# --- FIX: Use a specific, versioned tag for Debian ---
+FROM debian:12-slim
 
 # Set a non-interactive frontend to prevent prompts during installation
 ENV DEBIAN_FRONTEND=noninteractive
