@@ -1,16 +1,21 @@
 #!/bin/sh
 
-# Define the path to the acme.sh script
+# Define paths
 ACME_SH_PATH="/opt/acme.sh/acme.sh"
+XUI_BIN_PATH="/usr/local/x-ui/x-ui"
 
 # --- RUNTIME VERIFICATION ---
-# Immediately exit if acme.sh is not found
 if [ ! -f "${ACME_SH_PATH}" ]; then
   echo "FATAL ERROR: acme.sh script not found at ${ACME_SH_PATH}"
   exit 1
 fi
 
-# Set default values for environment variables if they are not provided
+if [ ! -f "${XUI_BIN_PATH}" ]; then
+  echo "FATAL ERROR: 3x-ui binary not found at ${XUI_BIN_PATH}"
+  exit 1
+fi
+
+# Set default values for environment variables
 DOMAIN=${DOMAIN:-"your.domain.com"}
 EMAIL=${EMAIL:-"your-email@example.com"}
 
@@ -18,8 +23,6 @@ EMAIL=${EMAIL:-"your-email@example.com"}
 if [ ! -f /etc/x-ui/server.crt ]; then
   echo "Certificate not found. Issuing a new one for ${DOMAIN}..."
   
-  # Issue a new certificate using acme.sh from its absolute path
-  # Use --server letsencrypt for explicit CA and --force for scripting
   ${ACME_SH_PATH} --issue \
     -d "${DOMAIN}" \
     --standalone \
@@ -28,7 +31,6 @@ if [ ! -f /etc/x-ui/server.crt ]; then
     --server letsencrypt
   
   echo "Installing certificate to /etc/x-ui/..."
-  # Install the certificate to the appropriate location for 3x-ui
   ${ACME_SH_PATH} --install-cert \
     -d "${DOMAIN}" \
     --cert-file      /etc/x-ui/server.crt \
@@ -37,5 +39,5 @@ if [ ! -f /etc/x-ui/server.crt ]; then
 fi
 
 echo "Starting 3x-ui panel..."
-# Start the 3x-ui panel
-/usr/local/x-ui/x-ui
+# Execute the 3x-ui panel
+exec ${XUI_BIN_PATH}
