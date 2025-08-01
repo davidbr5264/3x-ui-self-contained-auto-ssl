@@ -22,27 +22,25 @@ if [ ! -f "${DB_PATH}" ]; then
     # Use the 'migrate' command to create and populate the database with defaults
     ./x-ui migrate
     
-    echo "Database initialized. Forcing HTTPS configuration..."
+    echo "Database initialized. Forcing HTTPS configuration using correct column names..."
     
     # --- THIS IS THE CRITICAL FIX ---
-    # Update the settings table to ENABLE HTTPS and set certificate paths.
-    sqlite3 "${DB_PATH}" "UPDATE settings SET webEnableHttps = true, webCertPath = '${CERT_PATH}', webKeyPath = '${KEY_PATH}' WHERE id = 1;"
+    # Update the settings table to ENABLE HTTPS and set certificate paths using snake_case.
+    sqlite3 "${DB_PATH}" "UPDATE settings SET web_enable_https = true, web_cert_path = '${CERT_PATH}', web_key_path = '${KEY_PATH}' WHERE id = 1;"
     
     echo "HTTPS configuration applied. Verifying settings:"
     
-    # Verify by reading the values back from the database
-    sqlite3 "${DB_PATH}" "SELECT 'webEnableHttps:', webEnableHttps, 'webCertPath:', webCertPath, 'webKeyPath:', webKeyPath FROM settings WHERE id = 1;"
+    # Verify by reading the values back from the database using the correct column names
+    sqlite3 "${DB_PATH}" "SELECT 'web_enable_https:', web_enable_https, 'web_cert_path:', web_cert_path, 'web_key_path:', web_key_path FROM settings WHERE id = 1;"
     
     echo "---------------------------"
 fi
 
 
 # --- Certificate Generation (acme.sh) ---
-# If the certificate file does not exist, issue one.
 if [ ! -f "${CERT_PATH}" ]; then
   echo "Certificate not found. Issuing a new one for ${DOMAIN}..."
   
-  # Set default values for environment variables if they are not provided
   DOMAIN=${DOMAIN:-"your.domain.com"}
   EMAIL=${EMAIL:-"your-email@example.com"}
 
