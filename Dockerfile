@@ -5,10 +5,11 @@ FROM alpine:latest
 RUN apk update && apk add --no-cache \
     curl \
     socat \
-    tar
+    tar \
+    coreutils
 
-# Install acme.sh for SSL certificate management
-RUN curl https://get.acme.sh | sh
+# Install acme.sh to a predictable, absolute path
+RUN curl https://get.acme.sh | sh -s -- --home /opt/acme.sh
 
 # Set the latest version of 3x-ui
 ARG XUI_VERSION=latest
