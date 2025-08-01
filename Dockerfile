@@ -1,15 +1,28 @@
 # Use a lightweight base image
 FROM alpine:latest
 
-# Install necessary packages
+# Install necessary packages, including git and openssl for acme.sh
 RUN apk update && apk add --no-cache \
     curl \
     socat \
     tar \
-    coreutils
+    coreutils \
+    git \
+    openssl
 
-# Install acme.sh to a predictable, absolute path
-RUN curl https://get.acme.sh | sh -s -- --home /opt/acme.sh
+# Install acme.sh to a predictable, absolute path and verify it
+RUN git clone https://github.com/acmesh-official/acme.sh.git /opt/acme.sh && \
+    cd /opt/acme.sh && \
+    ./acme.sh --install --home /opt/acme.sh --accountemail "my@example.com" && \
+    apk del git
+
+# --- VERIFICATION STEP ---
+# This command will fail the build if acme.sh is not found or not executable
+RUN if [ ! -f /opt/acme.sh/acme.sh ] || [ ! -x /opt/acme.sh/acme.sh ]; then \
+    echo "Error: /opt/acme.sh/acme.sh not found or not executable."; \
+    ls -la /opt/acme.sh/; \
+    exit 1; \
+    fi
 
 # Set the latest version of 3x-ui
 ARG XUI_VERSION=latest
