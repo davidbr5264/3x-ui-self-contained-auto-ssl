@@ -1,38 +1,26 @@
-#!/bin/bash
+#!/bin/sh
 
-# Set default values for username and password if not provided
-XUI_USERNAME=${XUI_USERNAME:-admin}
-XUI_PASSWORD=${XUI_PASSWORD:-admin}
+CERT_PATH="/opt/ssl/cert.pem"
+KEY_PATH="/opt/ssl/key.pem"
+CONFIG_PATH="/opt/config.json"
+DOMAIN=${DOMAIN}
+EMAIL=${EMAIL}
 
-# Configure the panel with environment variables
-/usr/local/x-ui/x-ui setting -username ${XUI_USERNAME} -password ${XUI_PASSWORD} -port ${XUI_PORT}
-
-# Check if a domain is provided for SSL
-if [ -n "${XUI_DOMAIN}" ]; then
-  echo "Domain provided: ${XUI_DOMAIN}. Attempting to obtain SSL certificate."
-
-  # Stop any process that might be using port 80
-  fuser -k 80/tcp
-
-  # Install Acme.sh for SSL
-  curl https://get.acme.sh | sh
-  source ~/.acme.sh/acme.sh.env
-
-  # Issue SSL certificate
-  ~/.acme.sh/acme.sh --issue -d ${XUI_DOMAIN} --standalone
-
-  # Install the certificate for x-ui
-  ~/.acme.sh/acme.sh --install-cert -d ${XUI_DOMAIN} \
-    --key-file /usr/local/x-ui/server.key \
-    --fullchain-file /usr/local/x-ui/server.crt
-
-  # Set up cron job for automatic renewal
-  (crontab -l 2>/dev/null; echo "0 0 * * * ~/.acme.sh/acme.sh --cron -d ${XUI_DOMAIN} > /dev/null") | crontab -
-
+# Issue cert if not present
+if [ ! -f "$CERT_PATH" ] && [ -n "$DOMAIN" ] && [ -n "$EMAIL" ]; then
+  ~/.acme.sh/acme.sh --issue --standalone -d "$DOMAIN" --email "$EMAIL" --keylength ec-256
+  ~/.acme.sh/acme.sh --install-cert -d "$DOMAIN" \
+    --ecc \
+    --cert-file $CERT_PATH \
+    --key-file $KEY_PATH \
+    --fullchain-file /opt/ssl/fullchain.pem
 fi
 
-# Start cron service
-service cron start
+# Update the config file with new cert/key paths if config exists
+if [ -f "$CONFIG_PATH" ]; then
+  jq --arg cert "$CERT_PATH" --arg key "$KEY_PATH" \
+    '.ssl.cert = $cert | .ssl.key = $key' "$CONFIG_PATH" > "${CONFIG_PATH}.tmp" && mv "${CONFIG_PATH}.tmp" "$CONFIG_PATH"
+fi
 
-# Execute the CMD
-exec "$@"
+# Start 3x-ui (update with actual config arguments if needed)
+./3x-ui
