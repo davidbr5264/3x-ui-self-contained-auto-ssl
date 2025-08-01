@@ -22,14 +22,14 @@ EMAIL=${EMAIL:-"your-email@example.com"}
 # Check if a certificate already exists
 if [ ! -f /etc/x-ui/server.crt ]; then
   echo "Certificate not found. Issuing a new one for ${DOMAIN}..."
-  
+
   ${ACME_SH_PATH} --issue \
     -d "${DOMAIN}" \
     --standalone \
     -m "${EMAIL}" \
     --force \
     --server letsencrypt
-  
+
   echo "Installing certificate to /etc/x-ui/..."
   ${ACME_SH_PATH} --install-cert \
     -d "${DOMAIN}" \
