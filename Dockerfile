@@ -13,20 +13,20 @@ RUN wget -O /tmp/3x-ui.tar.gz "https://github.com/MHSanaei/3x-ui/releases/latest
     tar -zxvf /tmp/3x-ui.tar.gz -C /usr/local/ && \
     chmod +x /usr/local/x-ui/x-ui
 
-# --- Stage 2: Final Production Image (Using Debian 12) ---
-# --- FIX: Use a specific, versioned tag for Debian ---
+# --- Stage 2: Final Production Image (Using Debian) ---
 FROM debian:12-slim
 
 # Set a non-interactive frontend to prevent prompts during installation
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install runtime-only dependencies for Debian
+# --- FIX: ADD sqlite3 TO THE RUNTIME DEPENDENCIES ---
 RUN apt-get update && apt-get install -y --no-install-recommends \
     socat \
     coreutils \
     openssl \
     ca-certificates \
     curl \
+    sqlite3 \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Create necessary directories
