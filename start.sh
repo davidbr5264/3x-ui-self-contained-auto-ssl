@@ -2,7 +2,8 @@
 
 # Define paths
 ACME_SH_PATH="/opt/acme.sh/acme.sh"
-XUI_BIN_PATH="/usr/local/x-ui/x-ui"
+XUI_DIR="/usr/local/x-ui"
+XUI_BIN_PATH="${XUI_DIR}/x-ui"
 
 # --- RUNTIME VERIFICATION ---
 if [ ! -f "${ACME_SH_PATH}" ]; then
@@ -39,5 +40,9 @@ if [ ! -f /etc/x-ui/server.crt ]; then
 fi
 
 echo "Starting 3x-ui panel..."
-# Execute the 3x-ui panel
-exec ${XUI_BIN_PATH}
+
+# --- FIX: Change to the application's directory before running it ---
+cd "${XUI_DIR}" || exit
+
+# Execute the binary from its own directory
+exec ./x-ui
