@@ -10,11 +10,12 @@ RUN apk update && apk add --no-cache \
     git \
     openssl
 
-# Install acme.sh to a predictable, absolute path and verify it
-RUN git clone https://github.com/acmesh-official/acme.sh.git /opt/acme.sh && \
-    cd /opt/acme.sh && \
-    ./acme.sh --install --home /opt/acme.sh --accountemail "my@example.com" && \
-    apk del git
+# --- CORRECTED acme.sh INSTALLATION ---
+# Clone the repo and make the script executable. No need to run the installer.
+RUN apk add --no-cache --virtual .build-deps git && \
+    git clone https://github.com/acmesh-official/acme.sh.git /opt/acme.sh && \
+    chmod +x /opt/acme.sh/acme.sh && \
+    apk del .build-deps
 
 # --- VERIFICATION STEP ---
 # This command will fail the build if acme.sh is not found or not executable
