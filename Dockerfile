@@ -1,7 +1,7 @@
 # Use a lightweight base image
 FROM alpine:latest
 
-# Install necessary packages, including git and openssl for acme.sh
+# Install necessary packages
 RUN apk update && apk add --no-cache \
     curl \
     socat \
@@ -10,29 +10,24 @@ RUN apk update && apk add --no-cache \
     git \
     openssl
 
-# --- CORRECTED acme.sh INSTALLATION ---
-# Clone the repo and make the script executable. No need to run the installer.
-RUN apk add --no-cache --virtual .build-deps git && \
-    git clone https://github.com/acmesh-official/acme.sh.git /opt/acme.sh && \
-    chmod +x /opt/acme.sh/acme.sh && \
-    apk del .build-deps
+# --- acme.sh INSTALLATION ---
+RUN git clone https://github.com/acmesh-official/acme.sh.git /opt/acme.sh && \
+    chmod +x /opt/acme.sh/acme.sh
 
-# --- VERIFICATION STEP ---
-# This command will fail the build if acme.sh is not found or not executable
-RUN if [ ! -f /opt/acme.sh/acme.sh ] || [ ! -x /opt/acme.sh/acme.sh ]; then \
-    echo "Error: /opt/acme.sh/acme.sh not found or not executable."; \
-    ls -la /opt/acme.sh/; \
-    exit 1; \
-    fi
+# --- VERIFY acme.sh ---
+RUN if [ ! -x /opt/acme.sh/acme.sh ]; then echo "acme.sh not found or not executable"; exit 1; fi
 
-# Set the latest version of 3x-ui
-ARG XUI_VERSION=latest
-
-# Download and install 3x-ui
+# --- CORRECTED 3x-ui INSTALLATION & VERIFICATION ---
+# Download, extract, and then immediately verify the executable exists and is executable
 RUN wget -O /usr/local/3x-ui.tar.gz "https://github.com/MHSanaei/3x-ui/releases/latest/download/x-ui-linux-amd64.tar.gz" && \
     tar -zxvf /usr/local/3x-ui.tar.gz -C /usr/local/ && \
     rm /usr/local/3x-ui.tar.gz && \
-    chmod +x /usr/local/x-ui/x-ui
+    chmod +x /usr/local/x-ui/x-ui && \
+    if [ ! -x /usr/local/x-ui/x-ui ]; then \
+        echo "Error: /usr/local/x-ui/x-ui not found or not executable after extraction."; \
+        ls -la /usr/local/; \
+        exit 1; \
+    fi
 
 # Create necessary directories
 RUN mkdir -p /etc/x-ui/ && \
