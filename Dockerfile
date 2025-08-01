@@ -1,8 +1,7 @@
 # --- Stage 1: Build Environment ---
-# This stage will download and extract the necessary components
 FROM alpine:latest AS builder
 
-# --- FIX: Install build-time dependencies, INCLUDING GIT ---
+# Install build-time dependencies, including git
 RUN apk update && apk add --no-cache curl tar git
 
 # Download and prepare acme.sh
@@ -15,14 +14,14 @@ RUN wget -O /tmp/3x-ui.tar.gz "https://github.com/MHSanaei/3x-ui/releases/latest
     chmod +x /usr/local/x-ui/x-ui
 
 # --- Stage 2: Final Image ---
-# This is the image that will actually run
 FROM alpine:latest
 
-# Install runtime-only dependencies
+# --- FIX: ADD ca-certificates FOR SSL/TLS VERIFICATION ---
 RUN apk update && apk add --no-cache \
     socat \
     coreutils \
-    openssl
+    openssl \
+    ca-certificates
 
 # Create necessary directories
 RUN mkdir -p /etc/x-ui/ /var/log/x-ui/ /opt/
@@ -31,14 +30,13 @@ RUN mkdir -p /etc/x-ui/ /var/log/x-ui/ /opt/
 COPY --from=builder /opt/acme.sh /opt/acme.sh
 COPY --from=builder /usr/local/x-ui /usr/local/x-ui
 
-# --- VERIFICATION STEP ---
-# Verify that the files were copied correctly into the final image
+# Verify that the files were copied correctly
 RUN if [ ! -x /usr/local/x-ui/x-ui ]; then echo "FATAL: x-ui binary not copied correctly"; exit 1; fi
 RUN if [ ! -x /opt/acme.sh/acme.sh ]; then echo "FATAL: acme.sh not copied correctly"; exit 1; fi
 
-# Copy the startup script that will run the application
+# Copy the startup script
 COPY start.sh /start.sh
 RUN chmod +x /start.sh
 
-# Set the entrypoint to the startup script
+# Set the entrypoint
 ENTRYPOINT ["/bin/sh", "/start.sh"]
