@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -e # Exit immediately if a command exits with a non-zero status.
+
 # Define paths
 ACME_SH_PATH="/opt/acme.sh/acme.sh"
 XUI_DIR="/usr/local/x-ui"
@@ -8,21 +10,30 @@ DB_PATH="/etc/x-ui/x-ui.db"
 CERT_PATH="/etc/x-ui/server.crt"
 KEY_PATH="/etc/x-ui/server.key"
 
-# --- First-Run Database Initialization ---
+# --- First-Run Database Initialization and HTTPS Configuration ---
 # If the database file does not exist, this is the first run.
 if [ ! -f "${DB_PATH}" ]; then
-    echo "First run detected. Initializing database and setting SSL paths..."
+    echo "--- FIRST RUN DETECTED ---"
+    echo "Initializing database..."
     
     # Change to the application's directory to run migration
-    cd "${XUI_DIR}" || exit
+    cd "${XUI_DIR}"
     
-    # Use the 'migrate' command to create and populate the database
+    # Use the 'migrate' command to create and populate the database with defaults
     ./x-ui migrate
     
-    # Now, update the settings table with the certificate paths
-    sqlite3 "${DB_PATH}" "UPDATE settings SET webCertPath = '${CERT_PATH}', webKeyPath = '${KEY_PATH}' WHERE id = 1;"
+    echo "Database initialized. Forcing HTTPS configuration..."
     
-    echo "Database initialized and SSL paths configured."
+    # --- THIS IS THE CRITICAL FIX ---
+    # Update the settings table to ENABLE HTTPS and set certificate paths.
+    sqlite3 "${DB_PATH}" "UPDATE settings SET webEnableHttps = true, webCertPath = '${CERT_PATH}', webKeyPath = '${KEY_PATH}' WHERE id = 1;"
+    
+    echo "HTTPS configuration applied. Verifying settings:"
+    
+    # Verify by reading the values back from the database
+    sqlite3 "${DB_PATH}" "SELECT 'webEnableHttps:', webEnableHttps, 'webCertPath:', webCertPath, 'webKeyPath:', webKeyPath FROM settings WHERE id = 1;"
+    
+    echo "---------------------------"
 fi
 
 
@@ -53,7 +64,7 @@ fi
 echo "Starting 3x-ui panel..."
 
 # Change to the application's directory before running it
-cd "${XUI_DIR}" || exit
+cd "${XUI_DIR}"
 
 # Execute the binary from its own directory
 exec ./x-ui
