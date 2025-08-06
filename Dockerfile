@@ -1,27 +1,21 @@
-FROM alpine:latest
+FROM caddy:builder AS caddy-builder
+RUN xcaddy build \
+    --with github.com/caddy-dns/cloudflare \
+    --with github.com/mholt/caddy-dynamicdns
 
-# Install dependencies: curl (for acme.sh), socat (for acme.sh standalone), jq (for config manipulation)
-RUN apk add --no-cache curl socat jq
+FROM ghcr.io/mhsanaei/3x-ui:latest
 
-# Install acme.sh (for auto SSL)
-RUN curl https://get.acme.sh | sh
+# Install dependencies and copy Caddy
+RUN apk add --no-cache bash curl sqlite \
+    && mkdir -p /etc/x-ui/ssl /data/caddy
+COPY --from=caddy-builder /usr/bin/caddy /usr/bin/caddy
 
-# Clone 3x-ui (replace with binary installation if available for even lighter image)
-RUN mkdir -p /opt && \
-    cd /opt && \
-    curl -L $(curl -s https://api.github.com/repos/MHSanaei/3x-ui/releases/latest \
-      | jq -r '.assets[] | select(.name | test("linux_amd64")) | .browser_download_url') \
-      -o 3x-ui && chmod +x 3x-ui
+# Copy configuration scripts
+COPY entrypoint.sh /usr/local/bin/
+COPY healthcheck.sh /usr/local/bin/
 
-WORKDIR /opt
-
-# Create folder for SSL certs
-RUN mkdir -p /opt/ssl
-
-# Copy entrypoint script
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
-
-EXPOSE 80 443
-
-ENTRYPOINT ["/entrypoint.sh"]
+# Configure services
+EXPOSE 2053 80 443
+VOLUME ["/etc/x-ui", "/data/caddy"]
+HEALTHCHECK --interval=30s --timeout=3s CMD healthcheck.sh
+ENTRYPOINT ["entrypoint.sh"]
