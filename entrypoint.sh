@@ -1,26 +1,39 @@
-#!/bin/sh
+#!/bin/bash
 
-CERT_PATH="/opt/ssl/cert.pem"
-KEY_PATH="/opt/ssl/key.pem"
-CONFIG_PATH="/opt/config.json"
-DOMAIN=${DOMAIN}
-EMAIL=${EMAIL}
+# Set defaults if not provided
+DOMAIN="${DOMAIN:-yourdomain.com}"
+ADMIN_USER="${ADMIN_USER:-admin}"
+ADMIN_PASS="${ADMIN_PASS:-$(tr -dc A-Za-z0-9 </dev/urandom | head -c 16)}"
 
-# Issue cert if not present
-if [ ! -f "$CERT_PATH" ] && [ -n "$DOMAIN" ] && [ -n "$EMAIL" ]; then
-  ~/.acme.sh/acme.sh --issue --standalone -d "$DOMAIN" --email "$EMAIL" --keylength ec-256
-  ~/.acme.sh/acme.sh --install-cert -d "$DOMAIN" \
-    --ecc \
-    --cert-file $CERT_PATH \
-    --key-file $KEY_PATH \
-    --fullchain-file /opt/ssl/fullchain.pem
+# Generate Caddyfile
+cat > /etc/caddy/Caddyfile <<EOF
+${DOMAIN} {
+    reverse_proxy localhost:2053
+    tls {
+        dns cloudflare {env.CF_API_TOKEN}
+        issuer acme {
+            email ${SSL_EMAIL:-admin@${DOMAIN}}
+        }
+    }
+}
+EOF
+
+# Initialize 3x-ui if first run
+if [ ! -f /etc/x-ui/x-ui.db ]; then
+    /usr/local/x-ui/x-ui <<CONFIG
+1
+2053
+${ADMIN_USER}
+${ADMIN_PASS}
+/etc/x-ui/ssl/cert.pem
+/etc/x-ui/ssl/key.pem
+CONFIG
+
+    # Link Caddy certs to 3x-ui
+    ln -s /data/caddy/certificates/*/${DOMAIN}/${DOMAIN}.crt /etc/x-ui/ssl/cert.pem
+    ln -s /data/caddy/certificates/*/${DOMAIN}/${DOMAIN}.key /etc/x-ui/ssl/key.pem
 fi
 
-# Update the config file with new cert/key paths if config exists
-if [ -f "$CONFIG_PATH" ]; then
-  jq --arg cert "$CERT_PATH" --arg key "$KEY_PATH" \
-    '.ssl.cert = $cert | .ssl.key = $key' "$CONFIG_PATH" > "${CONFIG_PATH}.tmp" && mv "${CONFIG_PATH}.tmp" "$CONFIG_PATH"
-fi
-
-# Start 3x-ui (update with actual config arguments if needed)
-./3x-ui
+# Start services
+/usr/local/x-ui/x-ui &
+caddy run --config /etc/caddy/Caddyfile --adapter caddyfile
