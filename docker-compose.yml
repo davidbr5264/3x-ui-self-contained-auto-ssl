@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  3x-ui:
+    image: ghcr.io/your-username/3x-ui-caddy:latest  # Your built image
+    container_name: 3x-ui
+    restart: unless-stopped
+    environment:
+      - DOMAIN=yourdomain.com                      # Required
+      - CF_API_TOKEN=your_cloudflare_token         # For DNS-01 challenges
+      - ADMIN_USER=admin                           # Optional
+      - ADMIN_PASS=${ADMIN_PASS:-$(openssl rand -base64 12)}  # Auto-generate if not set
+      - SSL_EMAIL=admin@yourdomain.com             # For Let's Encrypt
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - xui_data:/etc/x-ui                         # 3x-ui configs and DB
+      - caddy_data:/data/caddy                     # SSL certificates
+    cap_add:
+      - NET_ADMIN                                  # Required for Xray
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:2053/api/info || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  xui_data:
+  caddy_data:
